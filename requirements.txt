@@ -3,3 +3,5 @@ fastapi
 jinja2
 pymongo
 python-dotenv
+requests
+pydantic

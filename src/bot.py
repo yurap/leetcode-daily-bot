@@ -1,7 +1,7 @@
 from datetime import datetime
 from pydantic import BaseModel
 import requests
-from src.common import submission_link
+from src.common import submission_link, extract_submission_id
 
 
 LEETCODE_DAILY_GROUP_ID = '-1002270137956'
@@ -44,23 +44,24 @@ def process_message(bot, db, data):
     name = f'{first_name} ({username})'
 
     if text.startswith('/start') or text.startswith('/help'):
-      bot.send_message(chat_id, "Please, send me a submission id for today's daily challenge")
-    elif text.isnumeric():
-      submission_id = text
+      bot.send_message(chat_id, "Please, send me a submission id or a link to a submission for today's daily challenge")
+      return
+
+    submission_id = extract_submission_id(text.strip())
     
-    if submission_id.isnumeric():
+    if submission_id:
       print(f"Will update submissions for {username} on {today}: {text}")
       result = db.submissions.update_one(
         {'username': name, 'date': today, 'chat_id': chat_id},
-        {'$set': {'text': text}},
+        {'$set': {'text': submission_id}},
         True,
       )
 
-      print(username, today, text, result)
-      bot.send_message(chat_id, f"Updated submission for {today}: {submission_link(text)}")
-      bot.send_message(LEETCODE_DAILY_GROUP_ID, f"New submission from {name}: {submission_link(text)}")
+      print(username, today, submission_id, result)
+      bot.send_message(chat_id, f"Updated submission for {today}: {submission_link(submission_id)}")
+      bot.send_message(LEETCODE_DAILY_GROUP_ID, f"New submission from {name}: {submission_link(submission_id)}")
     else:
-      bot.send_message(chat_id, "Incorrect input! please send me a submission id")
+      bot.send_message(chat_id, "Incorrect input! Please, send me a submission id or a link to a submission")
       raise ValueError(f"Incorrect link {data}")
 
   except Exception as e:
