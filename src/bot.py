@@ -2,6 +2,7 @@ from datetime import datetime
 from pydantic import BaseModel
 import requests
 from src.common import submission_link
+import re
 
 
 LEETCODE_DAILY_GROUP_ID = '-1002270137956'
@@ -32,6 +33,25 @@ class Bot(BaseModel):
       return res['result']['message_id']
     
     
+def extract_id(text):
+    # Define two separate patterns
+    pattern1 = r"https://leetcode\.com/submissions/detail/(\d+)/?"
+    pattern2 = r"https://leetcode\.com/problems/.+/submissions/(\d+)/?"
+    
+    # Try matching the first pattern
+    match1 = re.search(pattern1, text)
+    if match1:
+        return match1.group(1)
+    
+    # Try matching the second pattern
+    match2 = re.search(pattern2, text)
+    if match2:
+        return match2.group(1)
+    
+    # If no match, return None
+    return None
+    
+    
 def process_message(bot, db, data):
   try:
     message = data['message']
@@ -47,8 +67,10 @@ def process_message(bot, db, data):
       bot.send_message(chat_id, "Please, send me a submission id for today's daily challenge")
     elif text.isnumeric():
       submission_id = text
+    else:
+      submission_id = extract_id(text)
     
-    if submission_id.isnumeric():
+    if submission_id is not None and submission_id.isnumeric():
       print(f"Will update submissions for {username} on {today}: {text}")
       result = db.submissions.update_one(
         {'username': name, 'date': today, 'chat_id': chat_id},
@@ -57,8 +79,8 @@ def process_message(bot, db, data):
       )
 
       print(username, today, text, result)
-      bot.send_message(chat_id, f"Updated submission for {today}: {submission_link(text)}")
-      bot.send_message(LEETCODE_DAILY_GROUP_ID, f"New submission from {name}: {submission_link(text)}")
+      bot.send_message(chat_id, f"Updated submission for {today}: {submission_link(submission_id)}")
+      bot.send_message(LEETCODE_DAILY_GROUP_ID, f"New submission from {name}: {submission_link(submission_id)}")
     else:
       bot.send_message(chat_id, "Incorrect input! please send me a submission id")
       raise ValueError(f"Incorrect link {data}")
